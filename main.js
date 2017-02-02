@@ -9,6 +9,7 @@ function initializeGame(){
 
 function DodgerGame(){
 	this.currentPlayer = null;
+	this.fallers = [];
 	this.domElement = null;
 	this.playerAreaDomElement = null;
 	this.gameIsRunning = true;
@@ -22,6 +23,19 @@ function DodgerGame(){
 		this.getPlayerAreaStats();
 		this.createPlayer();
 		this.attachKeyboardHandlers();
+	}
+	this.createFaller = function(){
+		var newFaller = new Faller(this);
+		this.fallers.push(newFaller);
+		var fallerDomElement = newFaller.initialize({
+			speed: 50,
+			additionalClasses: 'redMediumFaller'
+		});
+		fallerDomElement.css({
+			left: '50px',
+			top: '0px'
+		});
+		this.domElement.append(fallerDomElement);
 	}
 	this.getPlayerAreaStats = function(){
 		this.playerAreaStats = this.playerAreaDomElement.position();
@@ -54,6 +68,43 @@ function DodgerGame(){
 		this.currentPlayer = new Player(this);
 		var playerElement = this.currentPlayer.createElement();
 		this.playerAreaDomElement.append(playerElement);
+	}
+	/*************  FALER SUB OBJECT ****************/
+	function Faller(parent){
+		this.parent = parent;
+		this.fallerElement = null;
+		this.heartBeatTimer = null;
+		this.options = null;
+		this.heartbeatIntervals = 30; //in ms
+		this.alive = true;
+	}
+	Faller.prototype.initialize = function(fallerOptions){
+		/*{
+			speed: //pixels per second
+			additionalClasses:
+		}*/
+		this.options = fallerOptions;
+		this.options.fallDelta = this.options.speed / this.heartbeatIntervals;
+		this.startHeartbeat();
+		return this.createElement();
+	}
+	Faller.prototype.createElement = function(){
+		this.fallerElement = $("<div>",{
+			class: 'fallerObject '+ this.options.additionalClasses
+		});
+		return this.fallerElement;
+	}
+	Faller.prototype.startHeartbeat = function(){
+		this.heartBeatTimer = setInterval(this.handleHeartbeat.bind(this),this.heartbeatIntervals);
+	}
+	Faller.prototype.handleHeartbeat = function(){
+		if(this.alive){
+			this.fall();
+		}
+	}
+	Faller.prototype.fall = function(){
+		var newY = this.fallerElement.position().top + this.options.fallDelta;
+		this.fallerElement.css('top',newY+'px');
 	}
 	/*************  PLAYER SUB OBJECT ***************/
 	function Player(parent){

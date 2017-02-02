@@ -17,3 +17,19 @@
 	position: absolute;
 	bottom: 0px;
 }
+
+/*faller css */
+.fallerObject{
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	height: 10vmin;
+	width: 10vmin;
+	background-color: black;
+}
+
+.fallerObject.redMediumFaller{
+	background-color: red;
+	height: 15vmin;
+	width: 15vmin;
+}
