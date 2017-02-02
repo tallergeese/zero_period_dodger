@@ -1,0 +1,19 @@
+#gameArea{
+	width: 100vw;
+	height: 100vh;
+	background-color: lightgreen;
+	position: relative;
+}
+.playerAvatar{
+	height: 5vmin;
+	width: 5vmin;
+	background-color: red;
+	position: absolute;
+}
+.playerArea{
+	height: 20%;
+	width: 100%;
+	background-color: pink;
+	position: absolute;
+	bottom: 0px;
+}
