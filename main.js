@@ -64,6 +64,8 @@ function DodgerGame(){
 			left: randomX+'px',
 			top: '0px',
 		});
+		fallerDomElement[0].style.webkitTransform = 'scale(1)';
+		newFaller.updateStats({left: randomX, top: 0});
 		this.domElement.append(fallerDomElement);
 	}
 	this.removeFaller = function(faller){
@@ -104,6 +106,10 @@ function DodgerGame(){
 		this.currentPlayer = new Player(this);
 		var playerElement = this.currentPlayer.createElement();
 		this.playerAreaDomElement.append(playerElement);
+		// this.playerData.width = playerElement.width();
+	}
+	this.getPlayerPosition = function(){
+
 	}
 	/*************  FALER SUB OBJECT ****************/
 	function Faller(parent){
@@ -111,11 +117,23 @@ function DodgerGame(){
 		this.parentHeight = null;
 		this.currentY = null;
 		this.height = null;
+		this.width = null;
 		this.fallerElement = null;
 		this.heartBeatTimer = null;
 		this.options = null;
 		this.heartbeatIntervals = 30; //in ms
 		this.alive = true;
+		this.fall = function(){
+			this.height = this.fallerElement.height();
+			this.width = this.fallerElement.width();
+			this.__proto__.fall.call(this);
+			//TODO: make sure this won't mess with other fallers created in close temporal proximity, generating a race condition due to modifying the prototype of all methods.  probably won't, but not with my luck
+			delete this.fall;
+		}
+	}
+	Faller.prototype.updateStats = function(newStats){
+		this.currentX = newStats.left;
+		this.currentY = newStats.top;
 	}
 	Faller.prototype.initialize = function(fallerOptions){
 		/*{
@@ -133,6 +151,7 @@ function DodgerGame(){
 		});
 		this.parentHeight = this.parent.getGameAreaHeight();
 		this.height = this.fallerElement.height();
+		this.width = this.fallerElement.width();
 		return this.fallerElement;
 	}
 	Faller.prototype.startHeartbeat = function(){
@@ -146,7 +165,32 @@ function DodgerGame(){
 		if(this.alive){
 			this.fall();
 			this.checkPosition();
+			this.checkCollision();
 		}
+	}
+	Faller.prototype.checkCollision = function(){
+		var playerStats = this.parent.currentPlayer.getPlayerStats();
+		var fallerTop = this.currentY;
+		var fallerLeft = this.currentX;
+		var fallerRight = fallerLeft + this.width;
+		var fallerBottom = fallerTop+this.height;
+
+		var playerTop = playerStats.absoluteStats.top;
+		var playerLeft = playerStats.absoluteStats.left;
+		var playerRight = playerLeft + playerStats.width;
+		var playerBottom = playerTop + playerStats.height;
+		
+		if(playerTop > fallerBottom
+			         ||
+		   playerLeft > fallerRight
+		             ||
+		   playerRight < fallerLeft
+		             ||
+		   playerBottom < fallerTop){ return false }
+			console.log('COLLISION!');
+	    return true;
+	    //TODO : why is collision only sometimes working?
+
 	}
 	Faller.prototype.checkPosition = function(){
 		if((this.currentY+this.height) > this.parentHeight){
@@ -168,7 +212,16 @@ function DodgerGame(){
 		this.parent = parent;
 		this.playerDomElement = null;
 		this.playerMovementDelta = 10;
-		this.avatarStats = null
+		this.avatarStats = {
+			width: null,
+			height: null,
+			left: null,
+			top: null,
+			absoluteStats: {
+				left: null,
+				top: null
+			}
+		};
 		this.createElement = function(){
 			this.playerDomElement = $("<div>",{
 				class: 'playerAvatar'
@@ -178,7 +231,8 @@ function DodgerGame(){
 		this.setPlayerStats = function(){
 			this.avatarStats = this.playerDomElement.position();
 			this.avatarStats.width = this.playerDomElement.width();
-			this.avatarStats.height = this.playerDomElement.height();			
+			this.avatarStats.height = this.playerDomElement.height();
+			this.avatarStats.absoluteStats = this.playerDomElement.offset();			
 		}
 		this.getPlayerStats = function(){
 			this.setPlayerStats();
@@ -205,9 +259,9 @@ function DodgerGame(){
 		}
 		this.move = function(direction){
 			var currentPosition = this.playerDomElement.position();
-			var newX = currentPosition.left + (direction * this.playerMovementDelta);
-			if(parent.checkValidPlayerNewPosition({left: newX})){
-				this.playerDomElement.css('left',newX+'px');			
+			this.avatarStats.left = currentPosition.left + (direction * this.playerMovementDelta);
+			if(parent.checkValidPlayerNewPosition({left: this.avatarStats.left})){
+				this.playerDomElement.css('left',this.avatarStats.left+'px');			
 			} else {
 				console.log('out of bounds');
 			}
