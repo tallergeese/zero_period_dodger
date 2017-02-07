@@ -33,3 +33,18 @@
 	height: 15vmin;
 	width: 15vmin;
 }
+.fallerObject.redSmallFaller{
+	background-color: red;
+	height: 8vmin;
+	width: 8vmin;
+}
+.fallerObject.blueMediumFaller{
+	background-color: red;
+	height: 13vmin;
+	width: 13vmin;
+}
+.fallerObject.greenTinyFaller{
+	background-color: red;
+	height: 4vmin;
+	width: 4vmin;
+}

@@ -14,6 +14,12 @@ function DodgerGame(){
 	this.playerAreaDomElement = null;
 	this.gameIsRunning = true;
 	this.playerAreaStats = null;
+	this.gameSettings = {
+		fallerSettings:{
+			minSpeed: 20,
+			maxSpeed: 100
+		}
+	};
 	this.initialize = function(domElement){
 		if(domElement === undefined){
 			console.error('must provide an element to attach gameplay to');
@@ -24,18 +30,49 @@ function DodgerGame(){
 		this.createPlayer();
 		this.attachKeyboardHandlers();
 	}
-	this.createFaller = function(){
+	this.getRandom = function(min,max){
+		if(Array.isArray(min)){
+			var data = min;
+			min = 0;
+			max = data.length;
+		}
+		if(max===undefined){
+			max = min;
+			min = 0;
+		}
+		return data ? data[Math.floor(Math.random()*(max-min))+min] : Math.floor(Math.random()*(max-min))+min;
+	}
+	this.createFaller = function(fallerClasses){
+		if(fallerClasses!==undefined){
+			this.gameSettings.fallerSettings.fallerClasses = fallerClasses;
+		} else if(this.gameSettings.fallerSettings.fallerClasses===undefined) {
+			console.error('must supply at least one class as an array to this method');
+			return;
+		}
 		var newFaller = new Faller(this);
 		this.fallers.push(newFaller);
+		var randomSpeed = this.getRandom(this.gameSettings.fallerSettings.minSpeed,this.gameSettings.fallerSettings.maxSpeed);
+		var randomClass = this.getRandom(this.gameSettings.fallerSettings.fallerClasses);
 		var fallerDomElement = newFaller.initialize({
-			speed: 50,
-			additionalClasses: 'redMediumFaller'
+			speed: randomSpeed,
+			additionalClasses: randomClass
 		});
+		var gameWidth = this.domElement.width();
+		var randomX = this.getRandom(gameWidth);
+		//TODO: check out reason all squares are red
 		fallerDomElement.css({
-			left: '50px',
-			top: '0px'
+			left: randomX+'px',
+			top: '0px',
 		});
 		this.domElement.append(fallerDomElement);
+	}
+	this.removeFaller = function(faller){
+		var fallerIndex = this.fallers.indexOf(faller);
+		this.fallers.splice(fallerIndex,1);
+		//TODO make this more robust against possible race conditions having to do with fallers being removed mid stream
+	}
+	this.getGameAreaHeight = function(){
+		return this.domElement.height();
 	}
 	this.getPlayerAreaStats = function(){
 		this.playerAreaStats = this.playerAreaDomElement.position();
@@ -43,7 +80,6 @@ function DodgerGame(){
 		this.playerAreaStats.bottom = this.playerAreaDomElement.height();
 	}
 	this.checkValidPlayerNewPosition = function(position){
-		debugger;
 		var playerStats = this.currentPlayer.getPlayerStats();
 		return (position.left>=0 && position.left < this.playerAreaStats.right - playerStats.width);
 	}
@@ -72,6 +108,9 @@ function DodgerGame(){
 	/*************  FALER SUB OBJECT ****************/
 	function Faller(parent){
 		this.parent = parent;
+		this.parentHeight = null;
+		this.currentY = null;
+		this.height = null;
 		this.fallerElement = null;
 		this.heartBeatTimer = null;
 		this.options = null;
@@ -92,19 +131,37 @@ function DodgerGame(){
 		this.fallerElement = $("<div>",{
 			class: 'fallerObject '+ this.options.additionalClasses
 		});
+		this.parentHeight = this.parent.getGameAreaHeight();
+		this.height = this.fallerElement.height();
 		return this.fallerElement;
 	}
 	Faller.prototype.startHeartbeat = function(){
 		this.heartBeatTimer = setInterval(this.handleHeartbeat.bind(this),this.heartbeatIntervals);
 	}
+	Faller.prototype.stopHeartbeat = function(){
+		clearInterval(this.heartBeatTimer);
+		this.heartBeatTimer = null;
+	}
 	Faller.prototype.handleHeartbeat = function(){
 		if(this.alive){
 			this.fall();
+			this.checkPosition();
+		}
+	}
+	Faller.prototype.checkPosition = function(){
+		if((this.currentY+this.height) > this.parentHeight){
+			this.die();
 		}
 	}
 	Faller.prototype.fall = function(){
-		var newY = this.fallerElement.position().top + this.options.fallDelta;
-		this.fallerElement.css('top',newY+'px');
+		this.currentY = this.fallerElement.position().top + this.options.fallDelta;
+		this.fallerElement.css('top',this.currentY+'px');
+	}
+	Faller.prototype.die = function(){
+		this.alive = false;
+		this.stopHeartbeat();
+		this.fallerElement.remove();
+		this.parent.removeFaller(this);
 	}
 	/*************  PLAYER SUB OBJECT ***************/
 	function Player(parent){
