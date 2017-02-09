@@ -20,7 +20,7 @@ function DodgerGame(){
 	this.gameSettings = {
 		fallerSettings:{
 			minSpeed: 20,
-			maxSpeed: 100,
+			maxSpeed: 500,
 			fallerSettings : null
 		},
 		difficulty : 1
@@ -39,6 +39,25 @@ function DodgerGame(){
 		//TODO: potentially useless code because of fallerClass checking.  Refactor for better code quality
 		this.createFaller();
 	}
+	this.handleCollision = function(){
+		console.log('I hear that you had a collision');
+		if( this.currentPlayer.reduceLives(1) < 1 ){
+			this.displayMessage('GAME OVER');
+			this.gameOver();
+		} else {
+			this.displayMessage('you got hit, board is resetting.  '+this.currentPlayer.getCurrentLives());
+			this.resetGameBoard();
+			this.startGameLoop();
+		}
+	}
+	this.displayMessage = function(message){
+		alert(message);
+	}
+	this.gameOver = function(){
+		this.stopGameLoop();
+		this.pauseFallers();
+	}
+
 	this.startGameLoop = function(){
 		if(this.gameLoopTimer!==null){
 			this.stopGameLoop();
@@ -46,7 +65,7 @@ function DodgerGame(){
 		this.gameLoopTimer = setInterval(this.gameLoop.bind(this),this.gameLoopInterval);
 	}
 	this.stopGameLoop = function(){
-		clearInterval()
+		clearInterval(this.gameLoopInterval);
 		this.gameLoopTimer=null;
 	}
 	this.gameLoop = function(){
@@ -96,6 +115,22 @@ function DodgerGame(){
 		fallerDomElement[0].style.webkitTransform = 'scale(1)';
 		newFaller.updateStats({left: randomX, top: 0});
 		this.domElement.append(fallerDomElement);
+	}
+	this.pauseFallers = function(){
+		this.iterateThroughFallers('pause');
+	}
+	this.resetGameBoard = function(){
+		this.deleteAllFallers();
+	}
+	this.deleteAllFallers = function(){
+		this.stopGameLoop();
+		this.iterateThroughFallers('die');
+	}
+	this.iterateThroughFallers = function(functionNameToCall){
+		let initialLength = this.fallers.length-1;
+		for(let i=initialLength; i>=0; i--){
+			this.fallers[i][functionNameToCall]();
+		}
 	}
 	this.removeFaller = function(faller){
 		var fallerIndex = this.fallers.indexOf(faller);
@@ -152,6 +187,7 @@ function DodgerGame(){
 		this.options = null;
 		this.heartbeatIntervals = 30; //in ms
 		this.alive = true;
+		this.collisionReported = false;
 		this.fall = function(){
 			this.height = this.fallerElement.height();
 			this.width = this.fallerElement.width();
@@ -159,6 +195,32 @@ function DodgerGame(){
 			//TODO: make sure this won't mess with other fallers created in close temporal proximity, generating a race condition due to modifying the prototype of all methods.  probably won't, but not with my luck
 			delete this.fall;
 		}
+		Faller.prototype.checkCollisionOn = function(){
+			var playerStats = this.parent.currentPlayer.getPlayerStats();
+			var fallerTop = this.currentY;
+			var fallerLeft = this.currentX;
+			var fallerRight = fallerLeft + this.width;
+			var fallerBottom = fallerTop+this.height;
+
+			var playerTop = playerStats.absoluteStats.top;
+			var playerLeft = playerStats.absoluteStats.left;
+			var playerRight = playerLeft + playerStats.width;
+			var playerBottom = playerTop + playerStats.height;
+			
+			if(playerTop > fallerBottom
+				         ||
+			   playerLeft > fallerRight
+			             ||
+			   playerRight < fallerLeft
+			             ||
+			   playerBottom < fallerTop){ return false }
+				console.log('COLLISION!');
+				this.parent.handleCollision();
+				this.checkCollision = Faller.prototype.checkCollisionOff;
+		    return true;
+		    //TODO : why is collision only sometimes working?
+		}
+		this.checkCollision = Faller.prototype.checkCollisionOn;
 	}
 	Faller.prototype.updateStats = function(newStats){
 		this.currentX = newStats.left;
@@ -197,30 +259,12 @@ function DodgerGame(){
 			this.checkCollision();
 		}
 	}
-	Faller.prototype.checkCollision = function(){
-		var playerStats = this.parent.currentPlayer.getPlayerStats();
-		var fallerTop = this.currentY;
-		var fallerLeft = this.currentX;
-		var fallerRight = fallerLeft + this.width;
-		var fallerBottom = fallerTop+this.height;
 
-		var playerTop = playerStats.absoluteStats.top;
-		var playerLeft = playerStats.absoluteStats.left;
-		var playerRight = playerLeft + playerStats.width;
-		var playerBottom = playerTop + playerStats.height;
-		
-		if(playerTop > fallerBottom
-			         ||
-		   playerLeft > fallerRight
-		             ||
-		   playerRight < fallerLeft
-		             ||
-		   playerBottom < fallerTop){ return false }
-			console.log('COLLISION!');
-	    return true;
-	    //TODO : why is collision only sometimes working?
-
+	Faller.prototype.checkCollisionOff = function(){
+		//this does nothing;
+		return;
 	}
+
 	Faller.prototype.checkPosition = function(){
 		if((this.currentY+this.height) > this.parentHeight){
 			this.die();
@@ -236,11 +280,15 @@ function DodgerGame(){
 		this.fallerElement.remove();
 		this.parent.removeFaller(this);
 	}
+	Faller.prototype.pause = function(){
+		this.stopHeartbeat();
+	}
 	/*************  PLAYER SUB OBJECT ***************/
-	function Player(parent){
+	function Player(parent,initialLives){
 		this.parent = parent;
 		this.playerDomElement = null;
 		this.playerMovementDelta = 10;
+		this.remainingLives = initialLives || 3;
 		this.avatarStats = {
 			width: null,
 			height: null,
@@ -251,6 +299,13 @@ function DodgerGame(){
 				top: null
 			}
 		};
+		this.reduceLives = function(value){
+			this.changeLives(value * -1);
+			return this.remainingLives;
+		}
+		this.changeLives = function(lifeDelta){
+			this.remainingLives += lifeDelta;
+		}
 		this.createElement = function(){
 			this.playerDomElement = $("<div>",{
 				class: 'playerAvatar'
@@ -285,6 +340,9 @@ function DodgerGame(){
 				default:
 					//no idea why you pressed that
 			}
+		}
+		this.getCurrentLives = function(){
+			return this.remainingLives;
 		}
 		this.move = function(direction){
 			var currentPosition = this.playerDomElement.position();
