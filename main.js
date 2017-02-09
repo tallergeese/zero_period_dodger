@@ -4,31 +4,60 @@ $(document).ready(initializeGame);
 
 function initializeGame(){
 	game = new DodgerGame();
-	game.initialize('#gameArea');
+	game.initialize('#gameArea',['redMediumFaller','redSmallFaller','blueMediumFaller','greenTinyFaller']);
 }
 
 function DodgerGame(){
 	this.currentPlayer = null;
 	this.fallers = [];
+	this.fallerPopulationPercentChance = .2;
 	this.domElement = null;
 	this.playerAreaDomElement = null;
 	this.gameIsRunning = true;
 	this.playerAreaStats = null;
+	this.gameLoopTimer = null;
+	this.gameLoopInterval = 1000;
 	this.gameSettings = {
 		fallerSettings:{
 			minSpeed: 20,
-			maxSpeed: 100
-		}
+			maxSpeed: 100,
+			fallerSettings : null
+		},
+		difficulty : 1
 	};
-	this.initialize = function(domElement){
+	this.initialize = function(domElement,fallerClasses){
 		if(domElement === undefined){
 			console.error('must provide an element to attach gameplay to');
 		}
 		this.domElement = $(domElement);
+		this.gameSettings.fallerSettings.fallerClasses = fallerClasses;
 		this.createPlayerArea();
 		this.getPlayerAreaStats();
 		this.createPlayer();
 		this.attachKeyboardHandlers();
+		this.startGameLoop();
+		//TODO: potentially useless code because of fallerClass checking.  Refactor for better code quality
+		this.createFaller();
+	}
+	this.startGameLoop = function(){
+		if(this.gameLoopTimer!==null){
+			this.stopGameLoop();
+		}
+		this.gameLoopTimer = setInterval(this.gameLoop.bind(this),this.gameLoopInterval);
+	}
+	this.stopGameLoop = function(){
+		clearInterval()
+		this.gameLoopTimer=null;
+	}
+	this.gameLoop = function(){
+		this.fallerSpawnChanceCheck();
+	}
+	this.fallerSpawnChanceCheck = function(){
+		var percentSpawnCheck = Math.random();
+		var percentChance = this.fallers.length * (this.fallerPopulationPercentChance * this.gameSettings.difficulty);
+		if(percentSpawnCheck > percentChance){
+			this.createFaller();
+		}
 	}
 	this.getRandom = function(min,max){
 		if(Array.isArray(min)){
@@ -45,7 +74,7 @@ function DodgerGame(){
 	this.createFaller = function(fallerClasses){
 		if(fallerClasses!==undefined){
 			this.gameSettings.fallerSettings.fallerClasses = fallerClasses;
-		} else if(this.gameSettings.fallerSettings.fallerClasses===undefined) {
+		} else if(this.gameSettings.fallerSettings.fallerClasses===null) {
 			console.error('must supply at least one class as an array to this method');
 			return;
 		}
