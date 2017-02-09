@@ -259,8 +259,10 @@ function DodgerGame(){
 		}
 		this.move = function(direction){
 			var currentPosition = this.playerDomElement.position();
-			this.avatarStats.left = currentPosition.left + (direction * this.playerMovementDelta);
+			var deltaMove = (direction * this.playerMovementDelta);
+			this.avatarStats.left = currentPosition.left + deltaMove;
 			if(parent.checkValidPlayerNewPosition({left: this.avatarStats.left})){
+				this.avatarStats.absoluteStats.left += deltaMove;
 				this.playerDomElement.css('left',this.avatarStats.left+'px');			
 			} else {
 				console.log('out of bounds');
